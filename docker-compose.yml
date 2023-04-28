@@ -1,0 +1,37 @@
+version: "3"
+
+services:
+  minikube:
+    image: gcr.io/k8s-minikube/minikube
+    privileged: true
+    environment:
+      - MINIKUBE_WANTUPDATENOTIFICATION=false
+      - MINIKUBE_WANTREPORTERRORPROMPT=false
+      - MINIKUBE_HOME=/root
+      - CHANGE_MINIKUBE_NONE_USER=true
+      - KUBECONFIG=/root/.kube/config
+    ports:
+      - "30000:30000"
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup
+    command: start --vm-driver=none --extra-config=kubelet.authentication-token-webhook=true --extra-config=kubelet.authorization-mode=Webhook --cpus=4 --memory=8192 --disk-size=40g
+
+  kubeflow:
+    image: gcr.io/kubeflow-images-public/kfctl:v1.2.0
+    volumes:
+      - ./kubeflow:/opt/kubeflow
+      - ${HOME}/.kube/config:/root/.kube/config
+    command: >
+      /opt/kubeflow/kfctl apply -V
+      -f /opt/kubeflow/kfctl_k8s_istio.v1.2.0.yaml
+
+  port-forward:
+    image: python:3.8-alpine
+    command: >
+      sh -c "pip install kubernetes pyyaml && python /opt/port_forward.py"
+    depends_on:
+      - minikube
+    environment:
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ./port_forward.py:/opt/port_forward.py
